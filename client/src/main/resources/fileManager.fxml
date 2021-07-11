@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane prefHeight="425.0" prefWidth="350.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="FileManagerController">
+   <TableView fx:id="fileTableView" layoutX="15.0" layoutY="14.0" prefHeight="330.0" prefWidth="330.0" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
+      <columns>
+         <TableColumn fx:id="fileNameColumn" editable="false" minWidth="75.0" prefWidth="228.0" text="Наименование" />
+         <TableColumn fx:id="fileSizeColumn" editable="false" minWidth="25.0" prefWidth="100.0" text="Размер" />
+      </columns>
+   </TableView>
+   <Button fx:id="sendFile" onAction="#sendFile" text="Отправить файл" AnchorPane.bottomAnchor="25.0" AnchorPane.rightAnchor="10.0" />
+   <Label fx:id="statusBar" layoutX="10.0" layoutY="408.0" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" />
+</AnchorPane>
