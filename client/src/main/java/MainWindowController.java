@@ -1,3 +1,5 @@
+import io.netty.handler.codec.serialization.ObjectDecoderInputStream;
+import io.netty.handler.codec.serialization.ObjectEncoderOutputStream;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -5,14 +7,19 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import lombok.extern.slf4j.Slf4j;
+import model.FileMessage;
+import model.SimpleMessage;
 
 import java.io.*;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.ResourceBundle;
 
-public class FileManagerController implements Initializable {
+import static model.MessageType.SIMPLE;
+
+@Slf4j
+public class MainWindowController implements Initializable {
     @FXML
     private TableView<FileProperty> fileTableView;
     @FXML
@@ -27,9 +34,9 @@ public class FileManagerController implements Initializable {
     private static final int PORT = 8189;
     private static String ROOT_DIR = "client/files";
     private static String HOST = "localhost";
-    private Socket socket;
-    private DataInputStream is;
-    private DataOutputStream os;
+    private ObjectEncoderOutputStream os;
+    private ObjectDecoderInputStream is;
+    private NettyNetwork network;
 
 
     @Override
@@ -40,47 +47,29 @@ public class FileManagerController implements Initializable {
         fileSizeColumn.setStyle("-fx-alignment: CENTER-RIGHT");
         fillFileList(ROOT_DIR);
         openConnection(HOST, PORT);
-        startListener();
     }
 
     private void openConnection(String host, int port) {
-        try {
-            socket = new Socket(host, port);
-            is = new DataInputStream(socket.getInputStream());
-            os = new DataOutputStream(socket.getOutputStream());
-        } catch (IOException e) {
-            e.printStackTrace();
-            showAlert("Ошибка подключения", "Сервер недоступен");
-            System.exit(0);
-        }
-    }
-
-    private void startListener() {
-        Thread readThread = new Thread(() -> {
-            try {
-                while (true) {
-                    String msg = is.readUTF();
-                    Platform.runLater(() -> statusBar.setText(msg));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+        network = new NettyNetwork(message -> {
+            log.info("message received: {}", message);
+            if (message.messageType() == SIMPLE) {
+                SimpleMessage simpleMsg = (SimpleMessage) message;
+                Platform.runLater(() -> statusBar.setText(simpleMsg.getMessage()));
             }
-        });
-        readThread.setDaemon(true);
-        readThread.start();
+        }, host, port);
     }
 
     private void fillFileList(String pathName) {
         try {
             File dir = new File(pathName);
-            FileFilter fileFilter = pathname -> pathname.isFile();
+            FileFilter fileFilter = File::isFile;
             this.files = dir.listFiles(fileFilter);
             for (File file : files) {
                 fileProperties.add(new FileProperty(file.getName(), Files.size(file.toPath())));
             }
             fileTableView.setItems(fileProperties);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("", e);
         }
     }
 
@@ -112,19 +101,14 @@ public class FileManagerController implements Initializable {
         alert.showAndWait();
     }
 
-    public void sendFile(ActionEvent event) throws IOException {
-        File file = null;
+    public void sendFile(ActionEvent event) {
         try {
-            file = getSelectedFile();
+            File file = getSelectedFile();
+            network.writeMessage(new FileMessage(file.toPath()));
+            statusBar.setText("Файл " + file.getName() + " отправлен");
         } catch (Exception e) {
+            log.error("", e);
             showAlert("Ошибка отправки", e.getMessage());
-            return;
         }
-        statusBar.setText(file.getName());
-        os.writeUTF(file.getName());
-        os.writeLong(Files.size(file.toPath()));
-        Files.copy(file.toPath(), os);
-        os.flush();
-        statusBar.setText("Файл " + file.getName() + " отправлен");
     }
 }
